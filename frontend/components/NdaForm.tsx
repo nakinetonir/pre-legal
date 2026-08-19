@@ -167,7 +167,7 @@ export function NdaForm({
 
       <button
         type="submit"
-        className="self-start rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700"
+        className="self-start rounded-md bg-purple-secondary px-5 py-2.5 font-medium text-white hover:opacity-90"
       >
         Generar NDA
       </button>

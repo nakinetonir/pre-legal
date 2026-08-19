@@ -82,7 +82,7 @@ export function NdaPreview({
       </div>
 
       <article className="rounded-lg border border-black/10 dark:border-white/15 p-6 sm:p-8 print:border-none print:p-0">
-        <h1 className="text-center text-xl font-bold tracking-wide">
+        <h1 className="text-center text-xl font-bold tracking-wide text-dark-navy">
           MUTUAL NON-DISCLOSURE AGREEMENT
         </h1>
 
