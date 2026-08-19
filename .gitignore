@@ -26,6 +26,13 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+logs/
+
+# --- Local server (scripts/start-*, scripts/stop-*) ---
+.server.pid
+
+# --- Backend runtime data (recreated fresh on every boot) ---
+backend/data/
 
 # --- Editor / OS ---
 .vscode/
