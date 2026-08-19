@@ -5,9 +5,11 @@ import { marked } from "marked";
 import { saveAs } from "file-saver";
 import { buildNdaDocxBlob } from "@/lib/nda/buildDocx";
 import { fillStandardTermsHtml } from "@/lib/nda/fillTemplate";
+import { getTemplate } from "@/lib/nda/templates";
 import { countryLabel } from "@/lib/nda/countries";
-import { describeConfidentiality, describeMndaTerm } from "@/lib/nda/durations";
 import { formatLegalDate } from "@/lib/nda/formatDate";
+import { localeForCountry } from "@/lib/i18n/locale";
+import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
 import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
 
 /**
@@ -15,7 +17,9 @@ import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
  * submit step — Party A/B identity, Effective Date, Purpose, MNDA Term,
  * Term of Confidentiality, Governing Law and Jurisdiction. It re-renders on
  * every keystroke because `values` is owned by the parent page and passed
- * straight through as a prop.
+ * straight through as a prop. The active locale (AG-79) is derived from the
+ * selected "Governing Law" country, so this preview always matches the
+ * language of the exported .docx (buildDocx.ts).
  */
 function display(value: string, placeholder: string): { text: string; isEmpty: boolean } {
   const trimmed = value.trim();
@@ -41,29 +45,38 @@ function Field({ label, value }: { label: string; value: { text: string; isEmpty
   );
 }
 
-function PartyCard({ title, party }: { title: string; party: NdaParty }) {
-  const name = display(party.name, "Party name");
-  const address = display(party.address, "Address");
-  const signatory = display(party.signatoryName, "Signatory name");
-  const title2 = display(party.signatoryTitle, "Title");
-  const email = display(party.signatoryEmail, "Email");
+function PartyCard({
+  title,
+  party,
+  dict,
+}: {
+  title: string;
+  party: NdaParty;
+  dict: UiDictionary;
+}) {
+  const p = dict.document.placeholders;
+  const name = display(party.name, p.partyName);
+  const address = display(party.address, p.address);
+  const signatory = display(party.signatoryName, p.signatoryName);
+  const title2 = display(party.signatoryTitle, p.signatoryTitle);
+  const email = display(party.signatoryEmail, p.email);
   return (
     <div className="rounded-lg border border-black/10 dark:border-white/15 p-4 text-sm">
       <h3 className="mb-2 font-semibold">{title}</h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-        <dt className="text-black/60 dark:text-white/60">Legal Name</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.document.legalNameLabel}</dt>
         <dd className={name.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {name.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">Address</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.document.noticeAddressLabel}</dt>
         <dd className={address.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {address.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">Signatory</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.document.signatoryNameLabel}</dt>
         <dd className={signatory.isEmpty || title2.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {signatory.text} — {title2.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">Email</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.document.noticeEmailLabel}</dt>
         <dd className={email.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {email.text}
         </dd>
@@ -82,6 +95,10 @@ export function NdaPreview({
   onAttemptInvalidAction: () => void;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const locale = localeForCountry(values.governingLawCountry);
+  const dict = getUiDictionary(locale);
+  const template = getTemplate(locale);
 
   const termsHtml = useMemo(() => {
     const markdown = fillStandardTermsHtml(values);
@@ -110,6 +127,8 @@ export function NdaPreview({
     window.print();
   }
 
+  const p = dict.document.placeholders;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3 print:hidden">
@@ -118,56 +137,65 @@ export function NdaPreview({
           disabled={isDownloading}
           className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
         >
-          {isDownloading ? "Generando…" : "Descargar .docx"}
+          {isDownloading ? dict.preview.downloadingButton : dict.preview.downloadButton}
         </button>
         <button
           onClick={handlePrint}
           className="rounded-md border border-black/15 dark:border-white/20 px-4 py-2 font-medium hover:bg-black/5 dark:hover:bg-white/10"
         >
-          Imprimir / Guardar como PDF
+          {dict.preview.printButton}
         </button>
         {!isValid && (
           <span className="text-xs text-red-600 dark:text-red-400">
-            Completa los campos obligatorios del formulario para descargar o imprimir.
+            {dict.preview.invalidFormNotice}
           </span>
         )}
       </div>
 
       <article className="rounded-lg border border-black/10 dark:border-white/15 p-6 sm:p-8 print:border-none print:p-0">
         <h1 className="text-center text-xl font-bold tracking-wide text-dark-navy">
-          MUTUAL NON-DISCLOSURE AGREEMENT
+          {dict.document.title}
         </h1>
 
         <section className="mt-6">
           <h2 className="mb-3 font-semibold uppercase tracking-wide text-sm text-black/60 dark:text-white/60">
-            Cover Page
+            {dict.document.coverPageHeading}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <PartyCard title="Party A" party={values.partyA} />
-            <PartyCard title="Party B" party={values.partyB} />
+            <PartyCard title={dict.form.partyA} party={values.partyA} dict={dict} />
+            <PartyCard title={dict.form.partyB} party={values.partyB} dict={dict} />
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <Field
-              label="Effective Date"
-              value={display(formatLegalDate(values.effectiveDate), "Effective Date")}
-            />
-            <Field label="MNDA Term" value={{ text: describeMndaTerm(values.mndaTermYears), isEmpty: false }} />
-            <Field label="Purpose" value={display(values.purpose, "Purpose")} />
-            <Field
-              label="Term of Confidentiality"
-              value={{ text: describeConfidentiality(values.confidentialityYears), isEmpty: false }}
+              label={dict.document.effectiveDateLabel}
+              value={display(formatLegalDate(values.effectiveDate, locale), p.effectiveDate)}
             />
             <Field
-              label="Governing Law"
-              value={display(countryLabel(values.governingLawCountry), "Governing Law")}
+              label={dict.document.mndaTermLabel}
+              value={{ text: template.describeMndaTerm(values.mndaTermYears), isEmpty: false }}
             />
-            <Field label="Jurisdiction" value={display(values.jurisdiction, "Jurisdiction")} />
+            <Field label={dict.document.purposeLabel} value={display(values.purpose, p.purpose)} />
+            <Field
+              label={dict.document.confidentialityLabel}
+              value={{
+                text: template.describeConfidentiality(values.confidentialityYears),
+                isEmpty: false,
+              }}
+            />
+            <Field
+              label={dict.document.governingLawLabel}
+              value={display(countryLabel(values.governingLawCountry, locale), p.governingLaw)}
+            />
+            <Field
+              label={dict.document.jurisdictionLabel}
+              value={display(values.jurisdiction, p.jurisdiction)}
+            />
           </dl>
         </section>
 
         <section className="mt-8">
           <h2 className="mb-3 font-semibold uppercase tracking-wide text-sm text-black/60 dark:text-white/60">
-            Standard Terms
+            {dict.document.standardTermsHeading}
           </h2>
           <div
             className="text-sm leading-relaxed [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-4 [&_p]:mb-2 [&_strong]:font-semibold [&_a]:underline [&_.nda-token--empty]:italic [&_.nda-token--empty]:text-black/40 dark:[&_.nda-token--empty]:text-white/40 [&_.nda-token--empty]:font-normal"
