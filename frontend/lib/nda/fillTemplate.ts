@@ -1,63 +1,79 @@
 import { STANDARD_TERMS_TEMPLATE } from "./standardTermsTemplate";
+import { countryLabel } from "./countries";
+import { describeConfidentiality, describeMndaTerm } from "./durations";
+import { formatLegalDate } from "./formatDate";
 import type { NdaFormValues } from "./types";
 
-/**
- * Escapes characters that are meaningful to Markdown/HTML so that free-text
- * user input is always rendered as literal text, never as markup, when the
- * filled template is parsed by `marked`.
- */
-export function escapeForMarkdown(value: string): string {
+export type TokenKey =
+  | "PURPOSE"
+  | "EFFECTIVE_DATE"
+  | "MNDA_TERM"
+  | "TERM_OF_CONFIDENTIALITY"
+  | "GOVERNING_LAW"
+  | "JURISDICTION";
+
+export type TokenState = { text: string; isPlaceholder: boolean };
+
+const TOKEN_PLACEHOLDER_LABEL: Record<TokenKey, string> = {
+  PURPOSE: "Purpose",
+  EFFECTIVE_DATE: "Effective Date",
+  MNDA_TERM: "MNDA Term",
+  TERM_OF_CONFIDENTIALITY: "Term of Confidentiality",
+  GOVERNING_LAW: "Governing Law",
+  JURISDICTION: "Jurisdiction",
+};
+
+function state(rawValue: string, key: TokenKey): TokenState {
+  const trimmed = rawValue.trim();
+  return trimmed.length > 0
+    ? { text: trimmed, isPlaceholder: false }
+    : { text: `[${TOKEN_PLACEHOLDER_LABEL[key]}]`, isPlaceholder: true };
+}
+
+/** Resolves every cover-page token to its display text, live as the form is edited. */
+export function resolveTokens(
+  values: NdaFormValues
+): Record<TokenKey, TokenState> {
+  return {
+    PURPOSE: state(values.purpose, "PURPOSE"),
+    EFFECTIVE_DATE: state(formatLegalDate(values.effectiveDate), "EFFECTIVE_DATE"),
+    MNDA_TERM: state(describeMndaTerm(values.mndaTermYears), "MNDA_TERM"),
+    TERM_OF_CONFIDENTIALITY: state(
+      describeConfidentiality(values.confidentialityYears),
+      "TERM_OF_CONFIDENTIALITY"
+    ),
+    GOVERNING_LAW: state(
+      countryLabel(values.governingLawCountry),
+      "GOVERNING_LAW"
+    ),
+    JURISDICTION: state(values.jurisdiction, "JURISDICTION"),
+  };
+}
+
+/** Escapes only what's needed to keep interpolated text literal inside HTML. */
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/[\\`*_{}[\]()#+\-.!]/g, (char) => `\\${char}`);
+    .replace(/>/g, "&gt;");
 }
 
-/** Escapes only the characters that would break the `**bold**` run parser used for .docx export. */
-export function escapeForPlainToken(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/\*/g, "\\*");
-}
-
-function buildTokenValues(
-  values: NdaFormValues,
-  escape: (value: string) => string
-): Record<string, string> {
-  const fallback = (value: string, placeholder: string) => {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? escape(trimmed) : `[${placeholder}]`;
-  };
-
-  return {
-    PURPOSE: fallback(values.purpose, "Purpose"),
-    EFFECTIVE_DATE: fallback(values.effectiveDate, "Effective Date"),
-    MNDA_TERM: fallback(values.mndaTerm, "MNDA Term"),
-    TERM_OF_CONFIDENTIALITY: fallback(
-      values.termOfConfidentiality,
-      "Term of Confidentiality"
-    ),
-    GOVERNING_LAW: fallback(values.governingLaw, "Governing Law"),
-    JURISDICTION: fallback(values.jurisdiction, "Jurisdiction"),
-  };
-}
-
-function fillTemplate(
-  values: NdaFormValues,
-  escape: (value: string) => string
-): string {
-  const tokens = buildTokenValues(values, escape);
+/**
+ * Standard Terms markdown with cover-page tokens substituted for raw HTML
+ * (bold for a filled value, a dimmed placeholder for an empty one) so the
+ * preview updates live, field by field, as the user types.
+ */
+export function fillStandardTermsHtml(values: NdaFormValues): string {
+  const tokens = resolveTokens(values);
   return STANDARD_TERMS_TEMPLATE.replace(
     /\{\{(\w+)\}\}/g,
-    (match, key: string) => `**${tokens[key] ?? match}**`
+    (match, key: string) => {
+      const token = tokens[key as TokenKey];
+      if (!token) return match;
+      const escaped = escapeHtml(token.text);
+      return token.isPlaceholder
+        ? `<span class="nda-token nda-token--empty">${escaped}</span>`
+        : `<strong class="nda-token">${escaped}</strong>`;
+    }
   );
-}
-
-/** Standard Terms with cover-page tokens filled in, safe to pass to a Markdown renderer. */
-export function fillStandardTermsMarkdown(values: NdaFormValues): string {
-  return fillTemplate(values, escapeForMarkdown);
-}
-
-/** Standard Terms with cover-page tokens filled in as plain text, for the .docx export. */
-export function fillStandardTermsPlain(values: NdaFormValues): string {
-  return fillTemplate(values, escapeForPlainToken);
 }

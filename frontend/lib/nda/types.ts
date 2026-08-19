@@ -1,3 +1,5 @@
+import { CONFIDENTIALITY_INDEFINITE, type ConfidentialityYears } from "./durations";
+
 export type NdaParty = {
   name: string;
   address: string;
@@ -11,9 +13,9 @@ export type NdaFormValues = {
   partyB: NdaParty;
   effectiveDate: string;
   purpose: string;
-  mndaTerm: string;
-  termOfConfidentiality: string;
-  governingLaw: string;
+  mndaTermYears: number;
+  confidentialityYears: ConfidentialityYears;
+  governingLawCountry: string;
   jurisdiction: string;
 };
 
@@ -30,8 +32,10 @@ export const emptyNdaFormValues: NdaFormValues = {
   partyB: { ...emptyParty },
   effectiveDate: "",
   purpose: "",
-  mndaTerm: "",
-  termOfConfidentiality: "",
-  governingLaw: "",
+  mndaTermYears: 2,
+  confidentialityYears: 3,
+  governingLawCountry: "",
   jurisdiction: "",
 };
+
+export { CONFIDENTIALITY_INDEFINITE };
