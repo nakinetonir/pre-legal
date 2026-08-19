@@ -10,28 +10,54 @@ import {
   TextRun,
   WidthType,
 } from "docx";
-import { fillStandardTermsPlain } from "./fillTemplate";
+import { STANDARD_TERMS_TEMPLATE } from "./standardTermsTemplate";
+import { resolveTokens, type TokenKey } from "./fillTemplate";
+import { countryLabel } from "./countries";
+import { describeConfidentiality, describeMndaTerm } from "./durations";
+import { formatLegalDate } from "./formatDate";
 import type { NdaFormValues, NdaParty } from "./types";
 
-const BOLD_RUN = /\*\*(.+?)\*\*/g;
-const LINK_MARKDOWN = /\[(.+?)\]\(.+?\)/g;
+const PLACEHOLDER_GRAY = "8A8A8A";
+
+/** Matches, in order of priority: a {{TOKEN}}, a **bold** run, a [text](url) link, or plain text. */
+const SEGMENT_RE = /\{\{(\w+)\}\}|\*\*(.+?)\*\*|\[(.+?)\]\(.+?\)/g;
 
 function displayValue(value: string, placeholder: string): string {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : `[${placeholder}]`;
 }
 
-function parseInlineRuns(text: string): TextRun[] {
+function parseSegmentRuns(
+  text: string,
+  tokens: Record<TokenKey, { text: string; isPlaceholder: boolean }>
+): TextRun[] {
   const runs: TextRun[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  BOLD_RUN.lastIndex = 0;
-  while ((match = BOLD_RUN.exec(text))) {
+  SEGMENT_RE.lastIndex = 0;
+  while ((match = SEGMENT_RE.exec(text))) {
     if (match.index > lastIndex) {
       runs.push(new TextRun(text.slice(lastIndex, match.index)));
     }
-    runs.push(new TextRun({ text: match[1], bold: true }));
-    lastIndex = BOLD_RUN.lastIndex;
+    const [, tokenKey, boldText, linkText] = match;
+    if (tokenKey) {
+      const token = tokens[tokenKey as TokenKey];
+      if (token) {
+        runs.push(
+          new TextRun({
+            text: token.text,
+            bold: !token.isPlaceholder,
+            italics: token.isPlaceholder,
+            color: token.isPlaceholder ? PLACEHOLDER_GRAY : undefined,
+          })
+        );
+      }
+    } else if (boldText) {
+      runs.push(new TextRun({ text: boldText, bold: true }));
+    } else if (linkText) {
+      runs.push(new TextRun(linkText));
+    }
+    lastIndex = SEGMENT_RE.lastIndex;
   }
   if (lastIndex < text.length) {
     runs.push(new TextRun(text.slice(lastIndex)));
@@ -39,16 +65,16 @@ function parseInlineRuns(text: string): TextRun[] {
   return runs;
 }
 
-function termsToParagraphs(markdown: string): Paragraph[] {
-  const withoutLinks = markdown.replace(LINK_MARKDOWN, "$1");
-  return withoutLinks
-    .split(/\n\s*\n/)
+function termsToParagraphs(
+  tokens: Record<TokenKey, { text: string; isPlaceholder: boolean }>
+): Paragraph[] {
+  return STANDARD_TERMS_TEMPLATE.split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter((block) => block.length > 0)
     .map(
       (block) =>
         new Paragraph({
-          children: parseInlineRuns(block.replace(/\n/g, " ")),
+          children: parseSegmentRuns(block.replace(/\n/g, " "), tokens),
           spacing: { after: 200 },
           alignment: AlignmentType.JUSTIFIED,
         })
@@ -122,7 +148,7 @@ function partyTable(title: string, party: NdaParty): (Paragraph | Table)[] {
 }
 
 export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
-  const filledTerms = fillStandardTermsPlain(values);
+  const tokens = resolveTokens(values);
 
   const doc = new Document({
     sections: [
@@ -152,7 +178,12 @@ export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
               new TableRow({
                 children: [
                   labelCell("Effective Date"),
-                  valueCell(displayValue(values.effectiveDate, "Effective Date")),
+                  valueCell(
+                    displayValue(
+                      formatLegalDate(values.effectiveDate),
+                      "Effective Date"
+                    )
+                  ),
                 ],
               }),
               new TableRow({
@@ -164,24 +195,24 @@ export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
               new TableRow({
                 children: [
                   labelCell("MNDA Term"),
-                  valueCell(displayValue(values.mndaTerm, "MNDA Term")),
+                  valueCell(describeMndaTerm(values.mndaTermYears)),
                 ],
               }),
               new TableRow({
                 children: [
                   labelCell("Term of Confidentiality"),
-                  valueCell(
-                    displayValue(
-                      values.termOfConfidentiality,
-                      "Term of Confidentiality"
-                    )
-                  ),
+                  valueCell(describeConfidentiality(values.confidentialityYears)),
                 ],
               }),
               new TableRow({
                 children: [
                   labelCell("Governing Law"),
-                  valueCell(displayValue(values.governingLaw, "Governing Law")),
+                  valueCell(
+                    displayValue(
+                      countryLabel(values.governingLawCountry),
+                      "Governing Law"
+                    )
+                  ),
                 ],
               }),
               new TableRow({
@@ -196,7 +227,7 @@ export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
             children: [new TextRun({ text: "Standard Terms", bold: true, size: 28 })],
             spacing: { before: 300, after: 200 },
           }),
-          ...termsToParagraphs(filledTerms),
+          ...termsToParagraphs(tokens),
         ],
       },
     ],

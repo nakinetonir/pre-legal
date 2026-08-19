@@ -4,30 +4,69 @@ import { useMemo, useState } from "react";
 import { marked } from "marked";
 import { saveAs } from "file-saver";
 import { buildNdaDocxBlob } from "@/lib/nda/buildDocx";
-import { fillStandardTermsMarkdown } from "@/lib/nda/fillTemplate";
+import { fillStandardTermsHtml } from "@/lib/nda/fillTemplate";
+import { countryLabel } from "@/lib/nda/countries";
+import { describeConfidentiality, describeMndaTerm } from "@/lib/nda/durations";
+import { formatLegalDate } from "@/lib/nda/formatDate";
 import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
 
-function display(value: string, placeholder: string): string {
+/**
+ * Cover Page header (AG-6): every field below feeds this block live, with no
+ * submit step — Party A/B identity, Effective Date, Purpose, MNDA Term,
+ * Term of Confidentiality, Governing Law and Jurisdiction. It re-renders on
+ * every keystroke because `values` is owned by the parent page and passed
+ * straight through as a prop.
+ */
+function display(value: string, placeholder: string): { text: string; isEmpty: boolean } {
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : `[${placeholder}]`;
+  return trimmed.length > 0
+    ? { text: trimmed, isEmpty: false }
+    : { text: `[${placeholder}]`, isEmpty: true };
+}
+
+function Field({ label, value }: { label: string; value: { text: string; isEmpty: boolean } }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-black/10 dark:border-white/10 py-1">
+      <dt className="text-black/60 dark:text-white/60">{label}</dt>
+      <dd
+        className={
+          value.isEmpty
+            ? "text-right italic text-black/40 dark:text-white/40"
+            : "text-right"
+        }
+      >
+        {value.text}
+      </dd>
+    </div>
+  );
 }
 
 function PartyCard({ title, party }: { title: string; party: NdaParty }) {
+  const name = display(party.name, "Party name");
+  const address = display(party.address, "Address");
+  const signatory = display(party.signatoryName, "Signatory name");
+  const title2 = display(party.signatoryTitle, "Title");
+  const email = display(party.signatoryEmail, "Email");
   return (
     <div className="rounded-lg border border-black/10 dark:border-white/15 p-4 text-sm">
       <h3 className="mb-2 font-semibold">{title}</h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <dt className="text-black/60 dark:text-white/60">Legal Name</dt>
-        <dd>{display(party.name, "Party name")}</dd>
+        <dd className={name.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
+          {name.text}
+        </dd>
         <dt className="text-black/60 dark:text-white/60">Address</dt>
-        <dd>{display(party.address, "Address")}</dd>
+        <dd className={address.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
+          {address.text}
+        </dd>
         <dt className="text-black/60 dark:text-white/60">Signatory</dt>
-        <dd>
-          {display(party.signatoryName, "Signatory name")} —{" "}
-          {display(party.signatoryTitle, "Title")}
+        <dd className={signatory.isEmpty || title2.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
+          {signatory.text} — {title2.text}
         </dd>
         <dt className="text-black/60 dark:text-white/60">Email</dt>
-        <dd>{display(party.signatoryEmail, "Email")}</dd>
+        <dd className={email.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
+          {email.text}
+        </dd>
       </dl>
     </div>
   );
@@ -35,19 +74,25 @@ function PartyCard({ title, party }: { title: string; party: NdaParty }) {
 
 export function NdaPreview({
   values,
-  onEdit,
+  isValid,
+  onAttemptInvalidAction,
 }: {
   values: NdaFormValues;
-  onEdit: () => void;
+  isValid: boolean;
+  onAttemptInvalidAction: () => void;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const termsHtml = useMemo(() => {
-    const markdown = fillStandardTermsMarkdown(values);
+    const markdown = fillStandardTermsHtml(values);
     return marked.parse(markdown, { async: false, gfm: true });
   }, [values]);
 
   async function handleDownloadDocx() {
+    if (!isValid) {
+      onAttemptInvalidAction();
+      return;
+    }
     setIsDownloading(true);
     try {
       const blob = await buildNdaDocxBlob(values);
@@ -57,15 +102,17 @@ export function NdaPreview({
     }
   }
 
+  function handlePrint() {
+    if (!isValid) {
+      onAttemptInvalidAction();
+      return;
+    }
+    window.print();
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-3 print:hidden">
-        <button
-          onClick={onEdit}
-          className="rounded-md border border-black/15 dark:border-white/20 px-4 py-2 font-medium hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          ← Editar datos
-        </button>
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
         <button
           onClick={handleDownloadDocx}
           disabled={isDownloading}
@@ -74,11 +121,16 @@ export function NdaPreview({
           {isDownloading ? "Generando…" : "Descargar .docx"}
         </button>
         <button
-          onClick={() => window.print()}
+          onClick={handlePrint}
           className="rounded-md border border-black/15 dark:border-white/20 px-4 py-2 font-medium hover:bg-black/5 dark:hover:bg-white/10"
         >
           Imprimir / Guardar como PDF
         </button>
+        {!isValid && (
+          <span className="text-xs text-red-600 dark:text-red-400">
+            Completa los campos obligatorios del formulario para descargar o imprimir.
+          </span>
+        )}
       </div>
 
       <article className="rounded-lg border border-black/10 dark:border-white/15 p-6 sm:p-8 print:border-none print:p-0">
@@ -95,34 +147,21 @@ export function NdaPreview({
             <PartyCard title="Party B" party={values.partyB} />
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1">
-              <dt className="text-black/60 dark:text-white/60">Effective Date</dt>
-              <dd>{display(values.effectiveDate, "Effective Date")}</dd>
-            </div>
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1">
-              <dt className="text-black/60 dark:text-white/60">MNDA Term</dt>
-              <dd>{display(values.mndaTerm, "MNDA Term")}</dd>
-            </div>
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1 sm:col-span-2">
-              <dt className="text-black/60 dark:text-white/60">Purpose</dt>
-              <dd className="text-right">{display(values.purpose, "Purpose")}</dd>
-            </div>
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1">
-              <dt className="text-black/60 dark:text-white/60">
-                Term of Confidentiality
-              </dt>
-              <dd>
-                {display(values.termOfConfidentiality, "Term of Confidentiality")}
-              </dd>
-            </div>
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1">
-              <dt className="text-black/60 dark:text-white/60">Governing Law</dt>
-              <dd>{display(values.governingLaw, "Governing Law")}</dd>
-            </div>
-            <div className="flex justify-between border-b border-black/10 dark:border-white/10 py-1">
-              <dt className="text-black/60 dark:text-white/60">Jurisdiction</dt>
-              <dd>{display(values.jurisdiction, "Jurisdiction")}</dd>
-            </div>
+            <Field
+              label="Effective Date"
+              value={display(formatLegalDate(values.effectiveDate), "Effective Date")}
+            />
+            <Field label="MNDA Term" value={{ text: describeMndaTerm(values.mndaTermYears), isEmpty: false }} />
+            <Field label="Purpose" value={display(values.purpose, "Purpose")} />
+            <Field
+              label="Term of Confidentiality"
+              value={{ text: describeConfidentiality(values.confidentialityYears), isEmpty: false }}
+            />
+            <Field
+              label="Governing Law"
+              value={display(countryLabel(values.governingLawCountry), "Governing Law")}
+            />
+            <Field label="Jurisdiction" value={display(values.jurisdiction, "Jurisdiction")} />
           </dl>
         </section>
 
@@ -131,7 +170,7 @@ export function NdaPreview({
             Standard Terms
           </h2>
           <div
-            className="text-sm leading-relaxed [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-4 [&_p]:mb-2 [&_strong]:font-semibold [&_a]:underline"
+            className="text-sm leading-relaxed [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-4 [&_p]:mb-2 [&_strong]:font-semibold [&_a]:underline [&_.nda-token--empty]:italic [&_.nda-token--empty]:text-black/40 dark:[&_.nda-token--empty]:text-white/40 [&_.nda-token--empty]:font-normal"
             dangerouslySetInnerHTML={{ __html: termsHtml }}
           />
         </section>
