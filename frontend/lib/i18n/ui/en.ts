@@ -73,6 +73,14 @@ export const en: UiDictionary = {
     printButton: "Print / Save as PDF",
     invalidFormNotice: "Complete the required form fields to download or print.",
   },
+  chat: {
+    inputPlaceholder: "Type your answer…",
+    sendButton: "Send",
+    thinkingIndicator: "Thinking…",
+    errorMessage: "Something went wrong. Please try again.",
+    retryButton: "Retry",
+    readyBanner: "I think I have everything I need — check the preview!",
+  },
   validation: {
     partyName: "Enter the legal name.",
     partyAddress: "Enter the address.",

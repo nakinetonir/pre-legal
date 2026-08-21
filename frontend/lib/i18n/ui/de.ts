@@ -74,6 +74,14 @@ export const de: UiDictionary = {
     invalidFormNotice:
       "Füllen Sie die Pflichtfelder des Formulars aus, um herunterzuladen oder zu drucken.",
   },
+  chat: {
+    inputPlaceholder: "Schreiben Sie Ihre Antwort…",
+    sendButton: "Senden",
+    thinkingIndicator: "Schreibt…",
+    errorMessage: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    retryButton: "Erneut versuchen",
+    readyBanner: "Ich glaube, ich habe alles Nötige - werfen Sie einen Blick auf die Vorschau!",
+  },
   validation: {
     partyName: "Geben Sie den rechtlichen Namen ein.",
     partyAddress: "Geben Sie die Adresse ein.",

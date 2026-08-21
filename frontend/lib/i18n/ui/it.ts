@@ -74,6 +74,14 @@ export const it: UiDictionary = {
     invalidFormNotice:
       "Completa i campi obbligatori del modulo per scaricare o stampare.",
   },
+  chat: {
+    inputPlaceholder: "Scrivi la tua risposta…",
+    sendButton: "Invia",
+    thinkingIndicator: "Sto scrivendo…",
+    errorMessage: "Qualcosa è andato storto. Riprova.",
+    retryButton: "Riprova",
+    readyBanner: "Credo di avere tutto il necessario: dai un'occhiata all'anteprima!",
+  },
   validation: {
     partyName: "Inserisci la ragione sociale.",
     partyAddress: "Inserisci l'indirizzo.",
