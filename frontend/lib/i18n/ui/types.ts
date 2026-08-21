@@ -97,6 +97,8 @@ export type UiDictionary = {
     invalidDuration: string;
     governingLawCountry: string;
     jurisdiction: string;
+    /** Generic "this field is required" message, reused by CSA/Pilot free-text fields (AG-64). */
+    requiredField: string;
   };
   /** Cover Page + Standard Terms chrome for the dedicated CSA preview/docx (AG-64). */
   csaDocument: {
@@ -226,5 +228,6 @@ export type UiDictionary = {
     savingButton: string;
     savedNotice: string;
     closeButton: string;
+    noDocumentSelected: string;
   };
 };

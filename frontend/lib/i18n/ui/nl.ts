@@ -2,11 +2,11 @@ import type { UiDictionary } from "./types";
 
 export const nl: UiDictionary = {
   page: {
-    title: "Wederzijdse NDA-generator (Common Paper)",
+    title: "Generator voor juridische documenten (Common Paper)",
     introBefore:
-      "Vul de gegevens links in en zie het document rechts direct bijwerken. De tekst volgt de ",
-    introLinkText: "Common Paper Mutual NDA v1.0",
-    introAfter: "-standaard.",
+      "Chat links met de AI om te beschrijven welk document je nodig hebt, en zie het rechts direct bijwerken. Documenten volgen de open standaarden van ",
+    introLinkText: "Common Paper",
+    introAfter: " waar beschikbaar.",
   },
   form: {
     partyA: "Partij A",
@@ -93,6 +93,7 @@ export const nl: UiDictionary = {
     invalidDuration: "Selecteer een geldige looptijd.",
     governingLawCountry: "Selecteer een land.",
     jurisdiction: "Voer de bevoegde rechter in.",
+    requiredField: "Dit veld is verplicht.",
   },
   csaDocument: {
     title: "CLOUDSERVICE-OVEREENKOMST",
@@ -217,5 +218,6 @@ export const nl: UiDictionary = {
     savingButton: "Bezig met opslaan…",
     savedNotice: "Opgeslagen.",
     closeButton: "Sluiten",
+    noDocumentSelected: "Vertel in de chat welk document je nodig hebt, dan verschijnt het hier.",
   },
 };

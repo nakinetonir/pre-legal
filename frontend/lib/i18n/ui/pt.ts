@@ -2,11 +2,11 @@ import type { UiDictionary } from "./types";
 
 export const pt: UiDictionary = {
   page: {
-    title: "Gerador de NDA mútuo (Common Paper)",
+    title: "Gerador de documentos legais (Common Paper)",
     introBefore:
-      "Preencha os dados à esquerda e veja o documento à direita a atualizar-se instantaneamente. O texto segue o padrão ",
-    introLinkText: "Common Paper Mutual NDA v1.0",
-    introAfter: ".",
+      "Conversa com a IA à esquerda para descrever o documento de que precisas, e vê-o atualizar-se instantaneamente à direita. Os documentos seguem os padrões abertos da ",
+    introLinkText: "Common Paper",
+    introAfter: " quando disponíveis.",
   },
   form: {
     partyA: "Parte A",
@@ -94,6 +94,7 @@ export const pt: UiDictionary = {
     invalidDuration: "Selecione uma duração válida.",
     governingLawCountry: "Selecione um país.",
     jurisdiction: "Introduza a jurisdição (tribunais).",
+    requiredField: "Este campo é obrigatório.",
   },
   csaDocument: {
     title: "ACORDO DE SERVIÇO NA NUVEM",
@@ -218,5 +219,6 @@ export const pt: UiDictionary = {
     savingButton: "A guardar…",
     savedNotice: "Guardado.",
     closeButton: "Fechar",
+    noDocumentSelected: "Diz-me no chat de que documento precisas e ele aparecerá aqui.",
   },
 };

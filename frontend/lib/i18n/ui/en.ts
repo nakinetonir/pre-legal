@@ -2,11 +2,11 @@ import type { UiDictionary } from "./types";
 
 export const en: UiDictionary = {
   page: {
-    title: "Mutual NDA Builder (Common Paper)",
+    title: "Legal Document Builder (Common Paper)",
     introBefore:
-      "Fill in the details on the left and watch the document on the right update instantly. The text follows the ",
-    introLinkText: "Common Paper Mutual NDA v1.0",
-    introAfter: " standard.",
+      "Chat with the AI on the left to describe the document you need, and watch it update instantly on the right. Documents follow the ",
+    introLinkText: "Common Paper",
+    introAfter: " open standards where available.",
   },
   form: {
     partyA: "Party A",
@@ -93,6 +93,7 @@ export const en: UiDictionary = {
     invalidDuration: "Select a valid term.",
     governingLawCountry: "Select a country.",
     jurisdiction: "Enter the jurisdiction (courts).",
+    requiredField: "This field is required.",
   },
   csaDocument: {
     title: "CLOUD SERVICE AGREEMENT",
@@ -217,5 +218,6 @@ export const en: UiDictionary = {
     savingButton: "Saving…",
     savedNotice: "Saved.",
     closeButton: "Close",
+    noDocumentSelected: "Tell me what document you need in the chat, and it'll show up here.",
   },
 };

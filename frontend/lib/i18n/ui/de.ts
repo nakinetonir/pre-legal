@@ -2,10 +2,10 @@ import type { UiDictionary } from "./types";
 
 export const de: UiDictionary = {
   page: {
-    title: "Generator für gegenseitige NDAs (Common Paper)",
+    title: "Generator für Rechtsdokumente (Common Paper)",
     introBefore:
-      "Füllen Sie links die Angaben aus und beobachten Sie, wie sich das Dokument rechts sofort aktualisiert. Der Text folgt dem Standard ",
-    introLinkText: "Common Paper Mutual NDA v1.0",
+      "Chatten Sie links mit der KI, um das gewünschte Dokument zu beschreiben, und sehen Sie rechts, wie es sich sofort aktualisiert. Die Dokumente folgen, soweit verfügbar, den offenen Standards von ",
+    introLinkText: "Common Paper",
     introAfter: ".",
   },
   form: {
@@ -94,6 +94,7 @@ export const de: UiDictionary = {
     invalidDuration: "Wählen Sie eine gültige Dauer aus.",
     governingLawCountry: "Wählen Sie ein Land aus.",
     jurisdiction: "Geben Sie den Gerichtsstand ein.",
+    requiredField: "Dieses Feld ist erforderlich.",
   },
   csaDocument: {
     title: "CLOUD-SERVICE-VERTRAG",
@@ -218,5 +219,6 @@ export const de: UiDictionary = {
     savingButton: "Wird gespeichert…",
     savedNotice: "Gespeichert.",
     closeButton: "Schließen",
+    noDocumentSelected: "Sagen Sie mir im Chat, welches Dokument Sie brauchen - es erscheint dann hier.",
   },
 };

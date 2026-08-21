@@ -1,23 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { applyChatFields } from "@/lib/nda/chatFields";
-import { fetchGreeting, sendChatMessage, type ChatMessage } from "@/lib/nda/chat";
+import { applyChatFieldsForType } from "@/lib/documents/applyChatFields";
+import { fetchGreeting, sendChatMessage, type ChatMessage } from "@/lib/documents/chat";
+import type { DocumentState } from "@/lib/documents/types";
 import { localeForCountry } from "@/lib/i18n/locale";
 import { getUiDictionary } from "@/lib/i18n/ui";
-import type { NdaFormValues } from "@/lib/nda/types";
 
 const inputClass =
   "flex-1 resize-none rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 border-black/15 dark:border-white/20";
 
-export function NdaChat({
-  values,
+/**
+ * Generalizes the former NdaChat.tsx (AG-63) to all 11 catalog types
+ * (AG-64): `state.documentType` starts null and is set once the backend's
+ * router turn (backend/app/chat.py) detects it from the conversation.
+ */
+export function DocumentChat({
+  state,
   onChange,
 }: {
-  values: NdaFormValues;
-  onChange: (values: NdaFormValues) => void;
+  state: DocumentState;
+  onChange: (state: DocumentState) => void;
 }) {
-  const locale = localeForCountry(values.governingLawCountry);
+  const locale = localeForCountry(state.values?.governingLawCountry ?? "");
   const dict = getUiDictionary(locale);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -26,13 +31,13 @@ export function NdaChat({
   const [error, setError] = useState(false);
   const [readyToGenerate, setReadyToGenerate] = useState(false);
 
-  const valuesRef = useRef(values);
+  const stateRef = useRef(state);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    valuesRef.current = values;
-  }, [values]);
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     fetchGreeting()
@@ -52,9 +57,12 @@ export function NdaChat({
     setIsSending(true);
     setError(false);
     try {
-      const turn = await sendChatMessage(history, valuesRef.current, locale);
+      const current = stateRef.current;
+      const turn = await sendChatMessage(history, current.documentType, current.values, locale);
       setMessages((prev) => [...prev, { role: "assistant", content: turn.reply }]);
-      onChange(applyChatFields(valuesRef.current, turn.fields));
+      if (turn.documentType) {
+        onChange(applyChatFieldsForType(current, turn.documentType, turn.fields));
+      }
       setReadyToGenerate(turn.readyToGenerate);
     } catch {
       setError(true);

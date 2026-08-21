@@ -3,26 +3,18 @@
 import { useMemo, useState } from "react";
 import { marked } from "marked";
 import { saveAs } from "file-saver";
-import { buildNdaDocxBlob } from "@/lib/nda/buildDocx";
-import { fillStandardTermsHtml } from "@/lib/nda/fillTemplate";
-import { getTemplate } from "@/lib/nda/templates";
+import { buildGenericDocxBlob } from "@/lib/generic/buildDocx";
+import { fillStandardTermsHtml } from "@/lib/generic/fillTemplate";
 import { countryLabel } from "@/lib/nda/countries";
 import { formatLegalDate } from "@/lib/nda/formatDate";
 import { localeForCountry } from "@/lib/i18n/locale";
 import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
 import type { SavedDocument } from "@/lib/documents/client";
-import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
+import type { GenericDocumentTypeId } from "@/lib/documents/types";
+import type { GenericFormValues, GenericParty } from "@/lib/generic/types";
 import { SaveDocumentButton } from "./SaveDocumentButton";
 
-/**
- * Cover Page header (AG-6): every field below feeds this block live, with no
- * submit step — Party A/B identity, Effective Date, Purpose, MNDA Term,
- * Term of Confidentiality, Governing Law and Jurisdiction. It re-renders on
- * every keystroke because `values` is owned by the parent page and passed
- * straight through as a prop. The active locale (AG-79) is derived from the
- * selected "Governing Law" country, so this preview always matches the
- * language of the exported .docx (buildDocx.ts).
- */
+/** Shared preview for the 8 catalog types with no dedicated component (AG-64). */
 function display(value: string, placeholder: string): { text: string; isEmpty: boolean } {
   const trimmed = value.trim();
   return trimmed.length > 0
@@ -53,10 +45,10 @@ function PartyCard({
   dict,
 }: {
   title: string;
-  party: NdaParty;
+  party: GenericParty;
   dict: UiDictionary;
 }) {
-  const p = dict.document.placeholders;
+  const p = dict.genericDocument.placeholders;
   const name = display(party.name, p.partyName);
   const address = display(party.address, p.address);
   const signatory = display(party.signatoryName, p.signatoryName);
@@ -66,19 +58,27 @@ function PartyCard({
     <div className="rounded-lg border border-black/10 dark:border-white/15 p-4 text-sm">
       <h3 className="mb-2 font-semibold">{title}</h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-        <dt className="text-black/60 dark:text-white/60">{dict.document.legalNameLabel}</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.genericDocument.legalNameLabel}</dt>
         <dd className={name.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {name.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">{dict.document.noticeAddressLabel}</dt>
+        <dt className="text-black/60 dark:text-white/60">
+          {dict.genericDocument.noticeAddressLabel}
+        </dt>
         <dd className={address.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {address.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">{dict.document.signatoryNameLabel}</dt>
-        <dd className={signatory.isEmpty || title2.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
+        <dt className="text-black/60 dark:text-white/60">
+          {dict.genericDocument.signatoryNameLabel}
+        </dt>
+        <dd
+          className={
+            signatory.isEmpty || title2.isEmpty ? "italic text-black/40 dark:text-white/40" : ""
+          }
+        >
           {signatory.text} — {title2.text}
         </dd>
-        <dt className="text-black/60 dark:text-white/60">{dict.document.noticeEmailLabel}</dt>
+        <dt className="text-black/60 dark:text-white/60">{dict.genericDocument.noticeEmailLabel}</dt>
         <dd className={email.isEmpty ? "italic text-black/40 dark:text-white/40" : ""}>
           {email.text}
         </dd>
@@ -87,14 +87,16 @@ function PartyCard({
   );
 }
 
-export function NdaPreview({
+export function GenericPreview({
+  documentType,
   values,
   isValid,
   onAttemptInvalidAction,
   documentId,
   onSaved,
 }: {
-  values: NdaFormValues;
+  documentType: GenericDocumentTypeId;
+  values: GenericFormValues;
   isValid: boolean;
   onAttemptInvalidAction: () => void;
   documentId: number | null;
@@ -104,12 +106,11 @@ export function NdaPreview({
 
   const locale = localeForCountry(values.governingLawCountry);
   const dict = getUiDictionary(locale);
-  const template = getTemplate(locale);
 
   const termsHtml = useMemo(() => {
-    const markdown = fillStandardTermsHtml(values);
+    const markdown = fillStandardTermsHtml(documentType, values, locale);
     return marked.parse(markdown, { async: false, gfm: true });
-  }, [values]);
+  }, [documentType, values]);
 
   async function handleDownloadDocx() {
     if (!isValid) {
@@ -118,8 +119,8 @@ export function NdaPreview({
     }
     setIsDownloading(true);
     try {
-      const blob = await buildNdaDocxBlob(values);
-      saveAs(blob, "Mutual-NDA.docx");
+      const blob = await buildGenericDocxBlob(documentType, values);
+      saveAs(blob, `${dict.documentTypeNames[documentType]}.docx`);
     } finally {
       setIsDownloading(false);
     }
@@ -133,10 +134,10 @@ export function NdaPreview({
     window.print();
   }
 
-  const p = dict.document.placeholders;
+  const p = dict.genericDocument.placeholders;
   const title = values.partyA.name.trim()
-    ? `${values.partyA.name.trim()} — ${dict.documentTypeNames["Mutual-NDA"]}`
-    : dict.documentTypeNames["Mutual-NDA"];
+    ? `${values.partyA.name.trim()} — ${dict.documentTypeNames[documentType]}`
+    : dict.documentTypeNames[documentType];
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,7 +158,7 @@ export function NdaPreview({
         <SaveDocumentButton
           dict={dict}
           documentId={documentId}
-          documentType="Mutual-NDA"
+          documentType={documentType}
           title={title}
           values={values}
           onSaved={onSaved}
@@ -171,40 +172,29 @@ export function NdaPreview({
 
       <article className="rounded-lg border border-black/10 dark:border-white/15 p-6 sm:p-8 print:border-none print:p-0">
         <h1 className="text-center text-xl font-bold tracking-wide text-dark-navy">
-          {dict.document.title}
+          {dict.documentTypeNames[documentType]}
         </h1>
 
         <section className="mt-6">
           <h2 className="mb-3 font-semibold uppercase tracking-wide text-sm text-black/60 dark:text-white/60">
-            {dict.document.coverPageHeading}
+            {dict.genericDocument.coverPageHeading}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <PartyCard title={dict.form.partyA} party={values.partyA} dict={dict} />
-            <PartyCard title={dict.form.partyB} party={values.partyB} dict={dict} />
+            <PartyCard title={dict.genericDocument.partyASection} party={values.partyA} dict={dict} />
+            <PartyCard title={dict.genericDocument.partyBSection} party={values.partyB} dict={dict} />
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <Field
-              label={dict.document.effectiveDateLabel}
+              label={dict.genericDocument.effectiveDateLabel}
               value={display(formatLegalDate(values.effectiveDate, locale), p.effectiveDate)}
             />
+            <Field label={dict.genericDocument.purposeLabel} value={display(values.purpose, p.purpose)} />
             <Field
-              label={dict.document.mndaTermLabel}
-              value={{ text: template.describeMndaTerm(values.mndaTermYears), isEmpty: false }}
-            />
-            <Field label={dict.document.purposeLabel} value={display(values.purpose, p.purpose)} />
-            <Field
-              label={dict.document.confidentialityLabel}
-              value={{
-                text: template.describeConfidentiality(values.confidentialityYears),
-                isEmpty: false,
-              }}
-            />
-            <Field
-              label={dict.document.governingLawLabel}
+              label={dict.genericDocument.governingLawLabel}
               value={display(countryLabel(values.governingLawCountry, locale), p.governingLaw)}
             />
             <Field
-              label={dict.document.jurisdictionLabel}
+              label={dict.genericDocument.jurisdictionLabel}
               value={display(values.jurisdiction, p.jurisdiction)}
             />
           </dl>
@@ -212,8 +202,11 @@ export function NdaPreview({
 
         <section className="mt-8">
           <h2 className="mb-3 font-semibold uppercase tracking-wide text-sm text-black/60 dark:text-white/60">
-            {dict.document.standardTermsHeading}
+            {dict.genericDocument.standardTermsHeading}
           </h2>
+          <p className="mb-3 text-xs italic text-black/50 dark:text-white/50">
+            {dict.genericDocument.standardTermsNotice}
+          </p>
           <div
             className="text-sm leading-relaxed [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-4 [&_p]:mb-2 [&_strong]:font-semibold [&_a]:underline [&_.nda-token--empty]:italic [&_.nda-token--empty]:text-black/40 dark:[&_.nda-token--empty]:text-white/40 [&_.nda-token--empty]:font-normal"
             dangerouslySetInnerHTML={{ __html: termsHtml }}
