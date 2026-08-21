@@ -73,6 +73,14 @@ export const nl: UiDictionary = {
     printButton: "Afdrukken / Opslaan als PDF",
     invalidFormNotice: "Vul de verplichte velden in om te downloaden of af te drukken.",
   },
+  chat: {
+    inputPlaceholder: "Typ uw antwoord…",
+    sendButton: "Versturen",
+    thinkingIndicator: "Bezig met typen…",
+    errorMessage: "Er is iets misgegaan. Probeer het opnieuw.",
+    retryButton: "Opnieuw proberen",
+    readyBanner: "Ik denk dat ik alles heb wat ik nodig heb — bekijk de voorbeeldweergave!",
+  },
   validation: {
     partyName: "Voer de wettelijke naam in.",
     partyAddress: "Voer het adres in.",

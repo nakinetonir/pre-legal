@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
-import { NdaForm } from "@/components/NdaForm";
+import { NdaChat } from "@/components/NdaChat";
 import { NdaPreview } from "@/components/NdaPreview";
 import { emptyNdaFormValues, type NdaFormValues } from "@/lib/nda/types";
 import { isNdaFormValid, validateNdaForm } from "@/lib/nda/validation";
@@ -11,7 +11,6 @@ import { getUiDictionary } from "@/lib/i18n/ui";
 
 export default function Home() {
   const [values, setValues] = useState<NdaFormValues>(emptyNdaFormValues);
-  const [forceShowErrors, setForceShowErrors] = useState(false);
 
   const errors = useMemo(() => validateNdaForm(values), [values]);
   const isValid = useMemo(() => isNdaFormValid(errors), [errors]);
@@ -40,19 +39,10 @@ export default function Home() {
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 print:block">
           <div className="print:hidden">
-            <NdaForm
-              values={values}
-              errors={errors}
-              forceShowErrors={forceShowErrors}
-              onChange={setValues}
-            />
+            <NdaChat values={values} onChange={setValues} />
           </div>
           <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-            <NdaPreview
-              values={values}
-              isValid={isValid}
-              onAttemptInvalidAction={() => setForceShowErrors(true)}
-            />
+            <NdaPreview values={values} isValid={isValid} onAttemptInvalidAction={() => {}} />
           </div>
         </div>
       </main>

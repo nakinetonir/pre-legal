@@ -77,6 +77,14 @@ export type UiDictionary = {
     printButton: string;
     invalidFormNotice: string;
   };
+  chat: {
+    inputPlaceholder: string;
+    sendButton: string;
+    thinkingIndicator: string;
+    errorMessage: string;
+    retryButton: string;
+    readyBanner: string;
+  };
   validation: {
     partyName: string;
     partyAddress: string;
