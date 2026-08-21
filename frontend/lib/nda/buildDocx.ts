@@ -10,11 +10,12 @@ import {
   TextRun,
   WidthType,
 } from "docx";
-import { STANDARD_TERMS_TEMPLATE } from "./standardTermsTemplate";
+import { getTemplate } from "./templates";
 import { resolveTokens, type TokenKey } from "./fillTemplate";
 import { countryLabel } from "./countries";
-import { describeConfidentiality, describeMndaTerm } from "./durations";
 import { formatLegalDate } from "./formatDate";
+import { localeForCountry } from "@/lib/i18n/locale";
+import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
 import type { NdaFormValues, NdaParty } from "./types";
 
 const PLACEHOLDER_GRAY = "8A8A8A";
@@ -66,9 +67,11 @@ function parseSegmentRuns(
 }
 
 function termsToParagraphs(
+  standardTermsTemplate: string,
   tokens: Record<TokenKey, { text: string; isPlaceholder: boolean }>
 ): Paragraph[] {
-  return STANDARD_TERMS_TEMPLATE.split(/\n\s*\n/)
+  return standardTermsTemplate
+    .split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter((block) => block.length > 0)
     .map(
@@ -97,7 +100,12 @@ function valueCell(value: string, widthPct = 70): TableCell {
   });
 }
 
-function partyTable(title: string, party: NdaParty): (Paragraph | Table)[] {
+function partyTable(
+  title: string,
+  party: NdaParty,
+  dict: UiDictionary
+): (Paragraph | Table)[] {
+  const p = dict.document.placeholders;
   return [
     new Paragraph({
       children: [new TextRun({ text: title, bold: true })],
@@ -108,39 +116,45 @@ function partyTable(title: string, party: NdaParty): (Paragraph | Table)[] {
       rows: [
         new TableRow({
           children: [
-            labelCell("Legal Name"),
-            valueCell(displayValue(party.name, "Party name")),
+            labelCell(dict.document.legalNameLabel),
+            valueCell(displayValue(party.name, p.partyName)),
           ],
         }),
         new TableRow({
           children: [
-            labelCell("Notice Address"),
-            valueCell(displayValue(party.address, "Address")),
+            labelCell(dict.document.noticeAddressLabel),
+            valueCell(displayValue(party.address, p.address)),
           ],
         }),
         new TableRow({
           children: [
-            labelCell("Signatory Name"),
-            valueCell(displayValue(party.signatoryName, "Signatory name")),
+            labelCell(dict.document.signatoryNameLabel),
+            valueCell(displayValue(party.signatoryName, p.signatoryName)),
           ],
         }),
         new TableRow({
           children: [
-            labelCell("Signatory Title"),
-            valueCell(displayValue(party.signatoryTitle, "Signatory title")),
+            labelCell(dict.document.signatoryTitleLabel),
+            valueCell(displayValue(party.signatoryTitle, p.signatoryTitle)),
           ],
         }),
         new TableRow({
           children: [
-            labelCell("Notice Email"),
-            valueCell(displayValue(party.signatoryEmail, "Email")),
+            labelCell(dict.document.noticeEmailLabel),
+            valueCell(displayValue(party.signatoryEmail, p.email)),
           ],
         }),
         new TableRow({
-          children: [labelCell("Signature"), valueCell("_______________________")],
+          children: [
+            labelCell(dict.document.signatureLabel),
+            valueCell("_______________________"),
+          ],
         }),
         new TableRow({
-          children: [labelCell("Date"), valueCell("_______________________")],
+          children: [
+            labelCell(dict.document.dateLabel),
+            valueCell("_______________________"),
+          ],
         }),
       ],
     }),
@@ -148,28 +162,34 @@ function partyTable(title: string, party: NdaParty): (Paragraph | Table)[] {
 }
 
 export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
+  const locale = localeForCountry(values.governingLawCountry);
+  const dict = getUiDictionary(locale);
+  const template = getTemplate(locale);
   const tokens = resolveTokens(values);
+  const p = dict.document.placeholders;
 
   const doc = new Document({
     sections: [
       {
         children: [
           new Paragraph({
-            text: "MUTUAL NON-DISCLOSURE AGREEMENT",
+            text: dict.document.title,
             heading: HeadingLevel.TITLE,
             alignment: AlignmentType.CENTER,
             spacing: { after: 300 },
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Cover Page", bold: true, size: 28 }),
+              new TextRun({ text: dict.document.coverPageHeading, bold: true, size: 28 }),
             ],
             spacing: { after: 200 },
           }),
-          ...partyTable("Party A (Disclosing / Receiving Party)", values.partyA),
-          ...partyTable("Party B (Disclosing / Receiving Party)", values.partyB),
+          ...partyTable(dict.document.partyASection, values.partyA, dict),
+          ...partyTable(dict.document.partyBSection, values.partyB, dict),
           new Paragraph({
-            children: [new TextRun({ text: "Agreement Terms", bold: true, size: 28 })],
+            children: [
+              new TextRun({ text: dict.document.agreementTermsHeading, bold: true, size: 28 }),
+            ],
             spacing: { before: 300, after: 200 },
           }),
           new Table({
@@ -177,57 +197,59 @@ export async function buildNdaDocxBlob(values: NdaFormValues): Promise<Blob> {
             rows: [
               new TableRow({
                 children: [
-                  labelCell("Effective Date"),
+                  labelCell(dict.document.effectiveDateLabel),
                   valueCell(
                     displayValue(
-                      formatLegalDate(values.effectiveDate),
-                      "Effective Date"
+                      formatLegalDate(values.effectiveDate, locale),
+                      p.effectiveDate
                     )
                   ),
                 ],
               }),
               new TableRow({
                 children: [
-                  labelCell("Purpose"),
-                  valueCell(displayValue(values.purpose, "Purpose")),
+                  labelCell(dict.document.purposeLabel),
+                  valueCell(displayValue(values.purpose, p.purpose)),
                 ],
               }),
               new TableRow({
                 children: [
-                  labelCell("MNDA Term"),
-                  valueCell(describeMndaTerm(values.mndaTermYears)),
+                  labelCell(dict.document.mndaTermLabel),
+                  valueCell(template.describeMndaTerm(values.mndaTermYears)),
                 ],
               }),
               new TableRow({
                 children: [
-                  labelCell("Term of Confidentiality"),
-                  valueCell(describeConfidentiality(values.confidentialityYears)),
+                  labelCell(dict.document.confidentialityLabel),
+                  valueCell(template.describeConfidentiality(values.confidentialityYears)),
                 ],
               }),
               new TableRow({
                 children: [
-                  labelCell("Governing Law"),
+                  labelCell(dict.document.governingLawLabel),
                   valueCell(
                     displayValue(
-                      countryLabel(values.governingLawCountry),
-                      "Governing Law"
+                      countryLabel(values.governingLawCountry, locale),
+                      p.governingLaw
                     )
                   ),
                 ],
               }),
               new TableRow({
                 children: [
-                  labelCell("Jurisdiction"),
-                  valueCell(displayValue(values.jurisdiction, "Jurisdiction")),
+                  labelCell(dict.document.jurisdictionLabel),
+                  valueCell(displayValue(values.jurisdiction, p.jurisdiction)),
                 ],
               }),
             ],
           }),
           new Paragraph({
-            children: [new TextRun({ text: "Standard Terms", bold: true, size: 28 })],
+            children: [
+              new TextRun({ text: dict.document.standardTermsHeading, bold: true, size: 28 }),
+            ],
             spacing: { before: 300, after: 200 },
           }),
-          ...termsToParagraphs(tokens),
+          ...termsToParagraphs(template.STANDARD_TERMS_TEMPLATE, tokens),
         ],
       },
     ],

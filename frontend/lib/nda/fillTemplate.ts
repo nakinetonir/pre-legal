@@ -1,7 +1,8 @@
-import { STANDARD_TERMS_TEMPLATE } from "./standardTermsTemplate";
+import { getTemplate } from "./templates";
 import { countryLabel } from "./countries";
-import { describeConfidentiality, describeMndaTerm } from "./durations";
 import { formatLegalDate } from "./formatDate";
+import { localeForCountry } from "@/lib/i18n/locale";
+import { getUiDictionary } from "@/lib/i18n/ui";
 import type { NdaFormValues } from "./types";
 
 export type TokenKey =
@@ -14,39 +15,42 @@ export type TokenKey =
 
 export type TokenState = { text: string; isPlaceholder: boolean };
 
-const TOKEN_PLACEHOLDER_LABEL: Record<TokenKey, string> = {
-  PURPOSE: "Purpose",
-  EFFECTIVE_DATE: "Effective Date",
-  MNDA_TERM: "MNDA Term",
-  TERM_OF_CONFIDENTIALITY: "Term of Confidentiality",
-  GOVERNING_LAW: "Governing Law",
-  JURISDICTION: "Jurisdiction",
-};
-
-function state(rawValue: string, key: TokenKey): TokenState {
+function state(rawValue: string, placeholderLabel: string): TokenState {
   const trimmed = rawValue.trim();
   return trimmed.length > 0
     ? { text: trimmed, isPlaceholder: false }
-    : { text: `[${TOKEN_PLACEHOLDER_LABEL[key]}]`, isPlaceholder: true };
+    : { text: `[${placeholderLabel}]`, isPlaceholder: true };
 }
 
-/** Resolves every cover-page token to its display text, live as the form is edited. */
+/**
+ * Resolves every cover-page token to its display text, live as the form is
+ * edited. The active locale (AG-79) is derived from the selected "Governing
+ * Law" country, so the legal phrasing, dates and placeholder labels are all
+ * consistent with one another.
+ */
 export function resolveTokens(
   values: NdaFormValues
 ): Record<TokenKey, TokenState> {
+  const locale = localeForCountry(values.governingLawCountry);
+  const template = getTemplate(locale);
+  const placeholders = getUiDictionary(locale).document.placeholders;
+
   return {
-    PURPOSE: state(values.purpose, "PURPOSE"),
-    EFFECTIVE_DATE: state(formatLegalDate(values.effectiveDate), "EFFECTIVE_DATE"),
-    MNDA_TERM: state(describeMndaTerm(values.mndaTermYears), "MNDA_TERM"),
+    PURPOSE: state(values.purpose, placeholders.purpose),
+    EFFECTIVE_DATE: state(
+      formatLegalDate(values.effectiveDate, locale),
+      placeholders.effectiveDate
+    ),
+    MNDA_TERM: state(template.describeMndaTerm(values.mndaTermYears), ""),
     TERM_OF_CONFIDENTIALITY: state(
-      describeConfidentiality(values.confidentialityYears),
-      "TERM_OF_CONFIDENTIALITY"
+      template.describeConfidentiality(values.confidentialityYears),
+      ""
     ),
     GOVERNING_LAW: state(
-      countryLabel(values.governingLawCountry),
-      "GOVERNING_LAW"
+      countryLabel(values.governingLawCountry, locale),
+      placeholders.governingLaw
     ),
-    JURISDICTION: state(values.jurisdiction, "JURISDICTION"),
+    JURISDICTION: state(values.jurisdiction, placeholders.jurisdiction),
   };
 }
 
@@ -61,11 +65,14 @@ export function escapeHtml(value: string): string {
 /**
  * Standard Terms markdown with cover-page tokens substituted for raw HTML
  * (bold for a filled value, a dimmed placeholder for an empty one) so the
- * preview updates live, field by field, as the user types.
+ * preview updates live, field by field, as the user types. The template
+ * itself is picked by the locale derived from the selected country (AG-80).
  */
 export function fillStandardTermsHtml(values: NdaFormValues): string {
+  const locale = localeForCountry(values.governingLawCountry);
+  const template = getTemplate(locale);
   const tokens = resolveTokens(values);
-  return STANDARD_TERMS_TEMPLATE.replace(
+  return template.STANDARD_TERMS_TEMPLATE.replace(
     /\{\{(\w+)\}\}/g,
     (match, key: string) => {
       const token = tokens[key as TokenKey];

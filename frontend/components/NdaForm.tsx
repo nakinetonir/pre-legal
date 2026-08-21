@@ -1,34 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { GOVERNING_LAW_COUNTRIES } from "@/lib/nda/countries";
+import { governingLawCountries } from "@/lib/nda/countries";
 import {
   CONFIDENTIALITY_INDEFINITE,
   CONFIDENTIALITY_YEAR_RANGE,
   MNDA_TERM_YEAR_RANGE,
   yearOptions,
 } from "@/lib/nda/durations";
+import { localeForCountry } from "@/lib/i18n/locale";
+import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
 import type { NdaFormErrors, PartyFieldErrors } from "@/lib/nda/validation";
 import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
 
 type PartyFieldKey = keyof NdaParty;
 type PartyKey = "partyA" | "partyB";
 
-const partyFields: { key: PartyFieldKey; label: string; placeholder: string }[] = [
-  { key: "name", label: "Nombre legal", placeholder: "Acme, Inc." },
-  {
-    key: "address",
-    label: "Dirección de notificación",
-    placeholder: "Calle Mayor 1, 28013 Madrid, España",
-  },
-  { key: "signatoryName", label: "Nombre del firmante", placeholder: "Jane Doe" },
-  { key: "signatoryTitle", label: "Cargo del firmante", placeholder: "CEO" },
-  {
-    key: "signatoryEmail",
-    label: "Email del firmante",
-    placeholder: "jane@acme.com",
-  },
-];
+function partyFields(
+  dict: UiDictionary
+): { key: PartyFieldKey; label: string; placeholder: string }[] {
+  const f = dict.form;
+  return [
+    { key: "name", label: f.nameLabel, placeholder: f.namePlaceholder },
+    { key: "address", label: f.addressLabel, placeholder: f.addressPlaceholder },
+    {
+      key: "signatoryName",
+      label: f.signatoryNameLabel,
+      placeholder: f.signatoryNamePlaceholder,
+    },
+    {
+      key: "signatoryTitle",
+      label: f.signatoryTitleLabel,
+      placeholder: f.signatoryTitlePlaceholder,
+    },
+    {
+      key: "signatoryEmail",
+      label: f.signatoryEmailLabel,
+      placeholder: f.signatoryEmailPlaceholder,
+    },
+  ];
+}
 
 const inputClass =
   "rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 border-black/15 dark:border-white/20 aria-[invalid=true]:border-red-500";
@@ -44,6 +55,7 @@ function PartyFieldset({
   errors,
   touched,
   forceShowErrors,
+  fields,
   onChange,
   onBlur,
 }: {
@@ -52,6 +64,7 @@ function PartyFieldset({
   errors: PartyFieldErrors;
   touched: Set<PartyFieldKey>;
   forceShowErrors: boolean;
+  fields: { key: PartyFieldKey; label: string; placeholder: string }[];
   onChange: (field: PartyFieldKey, value: string) => void;
   onBlur: (field: PartyFieldKey) => void;
 }) {
@@ -59,7 +72,7 @@ function PartyFieldset({
     <fieldset className="rounded-lg border border-black/10 dark:border-white/15 p-4">
       <legend className="px-1 font-medium">{title}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
-        {partyFields.map((field) => {
+        {fields.map((field) => {
           const showError = forceShowErrors || touched.has(field.key);
           const errorMessage = errors[field.key];
           return (
@@ -98,6 +111,10 @@ export function NdaForm({
   const [touchedB, setTouchedB] = useState<Set<PartyFieldKey>>(new Set());
   const [touchedTerms, setTouchedTerms] = useState<Set<string>>(new Set());
 
+  const locale = localeForCountry(values.governingLawCountry);
+  const dict = getUiDictionary(locale);
+  const fields = partyFields(dict);
+
   function updateParty(party: PartyKey, field: PartyFieldKey, value: string) {
     onChange({ ...values, [party]: { ...values[party], [field]: value } });
   }
@@ -121,29 +138,31 @@ export function NdaForm({
   return (
     <div className="flex flex-col gap-6">
       <PartyFieldset
-        title="Parte A"
+        title={dict.form.partyA}
         party={values.partyA}
         errors={errors.partyA}
         touched={touchedA}
         forceShowErrors={forceShowErrors}
+        fields={fields}
         onChange={(field, value) => updateParty("partyA", field, value)}
         onBlur={(field) => blurParty("partyA", field)}
       />
       <PartyFieldset
-        title="Parte B"
+        title={dict.form.partyB}
         party={values.partyB}
         errors={errors.partyB}
         touched={touchedB}
         forceShowErrors={forceShowErrors}
+        fields={fields}
         onChange={(field, value) => updateParty("partyB", field, value)}
         onBlur={(field) => blurParty("partyB", field)}
       />
 
       <fieldset className="rounded-lg border border-black/10 dark:border-white/15 p-4">
-        <legend className="px-1 font-medium">Términos del acuerdo</legend>
+        <legend className="px-1 font-medium">{dict.form.termsTitle}</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span>Fecha efectiva</span>
+            <span>{dict.form.effectiveDateLabel}</span>
             <input
               type="date"
               value={values.effectiveDate}
@@ -158,7 +177,7 @@ export function NdaForm({
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span>Duración del MNDA</span>
+            <span>{dict.form.mndaTermLabel}</span>
             <select
               value={values.mndaTermYears}
               onChange={(e) => updateField("mndaTermYears", Number(e.target.value))}
@@ -167,7 +186,7 @@ export function NdaForm({
             >
               {yearOptions(MNDA_TERM_YEAR_RANGE).map((year) => (
                 <option key={year} value={year}>
-                  {year} {year === 1 ? "año" : "años"}
+                  {year} {year === 1 ? dict.form.yearSingular : dict.form.yearPlural}
                 </option>
               ))}
             </select>
@@ -177,10 +196,10 @@ export function NdaForm({
           </label>
 
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span>Finalidad (Purpose)</span>
+            <span>{dict.form.purposeLabel}</span>
             <textarea
               rows={2}
-              placeholder="Evaluar una posible relación comercial entre las partes"
+              placeholder={dict.form.purposePlaceholder}
               value={values.purpose}
               aria-invalid={showTermError("purpose") && !!errors.purpose}
               onChange={(e) => updateField("purpose", e.target.value)}
@@ -191,7 +210,7 @@ export function NdaForm({
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span>Duración de la confidencialidad</span>
+            <span>{dict.form.confidentialityLabel}</span>
             <select
               value={values.confidentialityYears}
               onChange={(e) =>
@@ -207,10 +226,10 @@ export function NdaForm({
             >
               {yearOptions(CONFIDENTIALITY_YEAR_RANGE).map((year) => (
                 <option key={year} value={year}>
-                  {year} {year === 1 ? "año" : "años"}
+                  {year} {year === 1 ? dict.form.yearSingular : dict.form.yearPlural}
                 </option>
               ))}
-              <option value={CONFIDENTIALITY_INDEFINITE}>Indefinido</option>
+              <option value={CONFIDENTIALITY_INDEFINITE}>{dict.form.indefiniteLabel}</option>
             </select>
             {showTermError("confidentialityYears") && (
               <FieldError message={errors.confidentialityYears} />
@@ -218,7 +237,7 @@ export function NdaForm({
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span>Ley aplicable (país)</span>
+            <span>{dict.form.governingLawLabel}</span>
             <select
               value={values.governingLawCountry}
               aria-invalid={
@@ -228,8 +247,8 @@ export function NdaForm({
               onBlur={() => blurField("governingLawCountry")}
               className={inputClass}
             >
-              <option value="">Selecciona un país…</option>
-              {GOVERNING_LAW_COUNTRIES.map((country) => (
+              <option value="">{dict.form.countryPlaceholder}</option>
+              {governingLawCountries(locale).map((country) => (
                 <option key={country.code} value={country.code}>
                   {country.label}
                 </option>
@@ -241,10 +260,10 @@ export function NdaForm({
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span>Jurisdicción (tribunales)</span>
+            <span>{dict.form.jurisdictionLabel}</span>
             <input
               type="text"
-              placeholder="Madrid, España"
+              placeholder={dict.form.jurisdictionPlaceholder}
               value={values.jurisdiction}
               aria-invalid={showTermError("jurisdiction") && !!errors.jurisdiction}
               onChange={(e) => updateField("jurisdiction", e.target.value)}

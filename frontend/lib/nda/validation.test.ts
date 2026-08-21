@@ -66,4 +66,12 @@ describe("validateNdaForm", () => {
     const errors = validateNdaForm({ ...filled, confidentialityYears: "indefinite" });
     expect(errors.confidentialityYears).toBeUndefined();
   });
+
+  it("localizes error messages to the locale of the selected country (AG-66)", () => {
+    const esErrors = validateNdaForm({ ...emptyNdaFormValues, governingLawCountry: "ES" });
+    expect(esErrors.purpose).toBe("Describe la finalidad del acuerdo.");
+
+    const usErrors = validateNdaForm({ ...emptyNdaFormValues, governingLawCountry: "US" });
+    expect(usErrors.purpose).toBe("Describe the purpose of the agreement.");
+  });
 });

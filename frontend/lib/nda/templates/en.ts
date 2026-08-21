@@ -1,3 +1,6 @@
+import { CONFIDENTIALITY_INDEFINITE, type ConfidentialityYears } from "../durations";
+import type { TemplateModule } from "./types";
+
 /**
  * Standard Terms body of the Common Paper Mutual NDA v1.0, adapted from
  * templates/Mutual-NDA.md. The `<span class="coverpage_link">...</span>`
@@ -6,7 +9,7 @@
  *
  * Source: https://commonpaper.com/standards/mutual-nda/1.0/ (CC BY 4.0)
  */
-export const STANDARD_TERMS_TEMPLATE = `1. **Introduction**. This Mutual Non-Disclosure Agreement (which incorporates these Standard Terms and the Cover Page (defined below)) (“**MNDA**”) allows each party (“**Disclosing Party**”) to disclose or make available information in connection with the {{PURPOSE}} which (1) the Disclosing Party identifies to the receiving party (“**Receiving Party**”) as “confidential”, “proprietary”, or the like or (2) should be reasonably understood as confidential or proprietary due to its nature and the circumstances of its disclosure (“**Confidential Information**”). Each party’s Confidential Information also includes the existence and status of the parties’ discussions and information on the Cover Page. Confidential Information includes technical or business information, product designs or roadmaps, requirements, pricing, security and compliance documentation, technology, inventions and know-how. To use this MNDA, the parties must complete and sign a cover page incorporating these Standard Terms (“**Cover Page**”). Each party is identified on the Cover Page and capitalized terms have the meanings given herein or on the Cover Page.
+const STANDARD_TERMS_TEMPLATE = `1. **Introduction**. This Mutual Non-Disclosure Agreement (which incorporates these Standard Terms and the Cover Page (defined below)) (“**MNDA**”) allows each party (“**Disclosing Party**”) to disclose or make available information in connection with the {{PURPOSE}} which (1) the Disclosing Party identifies to the receiving party (“**Receiving Party**”) as “confidential”, “proprietary”, or the like or (2) should be reasonably understood as confidential or proprietary due to its nature and the circumstances of its disclosure (“**Confidential Information**”). Each party’s Confidential Information also includes the existence and status of the parties’ discussions and information on the Cover Page. Confidential Information includes technical or business information, product designs or roadmaps, requirements, pricing, security and compliance documentation, technology, inventions and know-how. To use this MNDA, the parties must complete and sign a cover page incorporating these Standard Terms (“**Cover Page**”). Each party is identified on the Cover Page and capitalized terms have the meanings given herein or on the Cover Page.
 
 2. **Use and Protection of Confidential Information**. The Receiving Party shall: (a) use Confidential Information solely for the {{PURPOSE}}; (b) not disclose Confidential Information to third parties without the Disclosing Party’s prior written approval, except that the Receiving Party may disclose Confidential Information to its employees, agents, advisors, contractors and other representatives having a reasonable need to know for the {{PURPOSE}}, provided these representatives are bound by confidentiality obligations no less protective of the Disclosing Party than the applicable terms in this MNDA and the Receiving Party remains responsible for their compliance with this MNDA; and (c) protect Confidential Information using at least the same protections the Receiving Party uses for its own similar information but no less than a reasonable standard of care.
 
@@ -30,3 +33,26 @@ export const STANDARD_TERMS_TEMPLATE = `1. **Introduction**. This Mutual Non-Dis
 
 Common Paper Mutual Non-Disclosure Agreement [Version 1.0](https://commonpaper.com/standards/mutual-nda/1.0/) free to use under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 `;
+
+function pluralYears(n: number): string {
+  return `${n} year${n === 1 ? "" : "s"}`;
+}
+
+/** Phrase inserted into "... and expires at the end of the {{MNDA_TERM}}." */
+function describeMndaTerm(years: number): string {
+  return `${pluralYears(years)} from the Effective Date`;
+}
+
+/** Phrase inserted into "... will survive for the {{TERM_OF_CONFIDENTIALITY}}, ..." */
+function describeConfidentiality(years: ConfidentialityYears): string {
+  if (years === CONFIDENTIALITY_INDEFINITE) {
+    return "indefinite period following the expiration or termination of this MNDA";
+  }
+  return `${pluralYears(years)} after the expiration or termination of this MNDA`;
+}
+
+export const en: TemplateModule = {
+  STANDARD_TERMS_TEMPLATE,
+  describeMndaTerm,
+  describeConfidentiality,
+};

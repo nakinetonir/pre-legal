@@ -2,7 +2,9 @@ import {
   isValidConfidentialityYears,
   isValidMndaTermYears,
 } from "./durations";
-import { GOVERNING_LAW_COUNTRIES } from "./countries";
+import { governingLawCountries } from "./countries";
+import { localeForCountry } from "@/lib/i18n/locale";
+import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
 import type { NdaFormValues, NdaParty } from "./types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -20,48 +22,50 @@ export type NdaFormErrors = {
   jurisdiction?: string;
 };
 
-function validateParty(party: NdaParty): PartyFieldErrors {
+function validateParty(party: NdaParty, v: UiDictionary["validation"]): PartyFieldErrors {
   const errors: PartyFieldErrors = {};
-  if (!party.name.trim()) errors.name = "Introduce el nombre legal.";
-  if (!party.address.trim()) errors.address = "Introduce la dirección.";
-  if (!party.signatoryName.trim())
-    errors.signatoryName = "Introduce el nombre del firmante.";
-  if (!party.signatoryTitle.trim())
-    errors.signatoryTitle = "Introduce el cargo del firmante.";
+  if (!party.name.trim()) errors.name = v.partyName;
+  if (!party.address.trim()) errors.address = v.partyAddress;
+  if (!party.signatoryName.trim()) errors.signatoryName = v.partySignatoryName;
+  if (!party.signatoryTitle.trim()) errors.signatoryTitle = v.partySignatoryTitle;
   if (!party.signatoryEmail.trim()) {
-    errors.signatoryEmail = "Introduce el email del firmante.";
+    errors.signatoryEmail = v.partySignatoryEmail;
   } else if (!EMAIL_RE.test(party.signatoryEmail.trim())) {
-    errors.signatoryEmail = "El email no tiene un formato válido.";
+    errors.signatoryEmail = v.invalidEmail;
   }
   return errors;
 }
 
+/** Validation messages follow the locale derived from the selected "Governing Law" country (AG-79). */
 export function validateNdaForm(values: NdaFormValues): NdaFormErrors {
+  const locale = localeForCountry(values.governingLawCountry);
+  const v = getUiDictionary(locale).validation;
+
   const errors: NdaFormErrors = {
-    partyA: validateParty(values.partyA),
-    partyB: validateParty(values.partyB),
+    partyA: validateParty(values.partyA, v),
+    partyB: validateParty(values.partyB, v),
   };
 
   if (!values.effectiveDate.trim()) {
-    errors.effectiveDate = "Selecciona la fecha efectiva.";
+    errors.effectiveDate = v.effectiveDate;
   }
   if (!values.purpose.trim()) {
-    errors.purpose = "Describe la finalidad del acuerdo.";
+    errors.purpose = v.purpose;
   }
   if (!isValidMndaTermYears(values.mndaTermYears)) {
-    errors.mndaTermYears = "Selecciona una duración válida.";
+    errors.mndaTermYears = v.invalidDuration;
   }
   if (!isValidConfidentialityYears(values.confidentialityYears)) {
-    errors.confidentialityYears = "Selecciona una duración válida.";
+    errors.confidentialityYears = v.invalidDuration;
   }
   if (
     !values.governingLawCountry ||
-    !GOVERNING_LAW_COUNTRIES.some((c) => c.code === values.governingLawCountry)
+    !governingLawCountries(locale).some((c) => c.code === values.governingLawCountry)
   ) {
-    errors.governingLawCountry = "Selecciona un país.";
+    errors.governingLawCountry = v.governingLawCountry;
   }
   if (!values.jurisdiction.trim()) {
-    errors.jurisdiction = "Introduce la jurisdicción (tribunales).";
+    errors.jurisdiction = v.jurisdiction;
   }
 
   return errors;
