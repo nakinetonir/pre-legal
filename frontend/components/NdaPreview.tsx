@@ -10,7 +10,9 @@ import { countryLabel } from "@/lib/nda/countries";
 import { formatLegalDate } from "@/lib/nda/formatDate";
 import { localeForCountry } from "@/lib/i18n/locale";
 import { getUiDictionary, type UiDictionary } from "@/lib/i18n/ui";
+import type { SavedDocument } from "@/lib/documents/client";
 import type { NdaFormValues, NdaParty } from "@/lib/nda/types";
+import { SaveDocumentButton } from "./SaveDocumentButton";
 
 /**
  * Cover Page header (AG-6): every field below feeds this block live, with no
@@ -89,10 +91,14 @@ export function NdaPreview({
   values,
   isValid,
   onAttemptInvalidAction,
+  documentId,
+  onSaved,
 }: {
   values: NdaFormValues;
   isValid: boolean;
   onAttemptInvalidAction: () => void;
+  documentId: number | null;
+  onSaved: (document: SavedDocument) => void;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -128,6 +134,9 @@ export function NdaPreview({
   }
 
   const p = dict.document.placeholders;
+  const title = values.partyA.name.trim()
+    ? `${values.partyA.name.trim()} — ${dict.documentTypeNames["Mutual-NDA"]}`
+    : dict.documentTypeNames["Mutual-NDA"];
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,6 +154,14 @@ export function NdaPreview({
         >
           {dict.preview.printButton}
         </button>
+        <SaveDocumentButton
+          dict={dict}
+          documentId={documentId}
+          documentType="Mutual-NDA"
+          title={title}
+          values={values}
+          onSaved={onSaved}
+        />
         {!isValid && (
           <span className="text-xs text-red-600 dark:text-red-400">
             {dict.preview.invalidFormNotice}

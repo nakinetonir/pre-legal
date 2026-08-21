@@ -1,7 +1,4 @@
-export type AuthUser = {
-  id: number;
-  name: string;
-};
+import type { AuthUser } from "./types";
 
 /**
  * In `next dev` (port 3000) the API lives on the separate backend dev server
@@ -23,17 +20,33 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
   return (await res.json()) as AuthUser;
 }
 
-export async function signIn(name: string): Promise<AuthUser> {
-  const res = await fetch(`${apiBase()}/api/auth/signin`, {
+async function authRequest(path: string, email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${apiBase()}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
-    throw new Error("No se pudo iniciar sesión");
+    const message =
+      res.status === 409
+        ? "Ese email ya está registrado."
+        : res.status === 401
+          ? "Email o contraseña incorrectos."
+          : res.status === 422
+            ? "Revisa el email y que la contraseña tenga al menos 8 caracteres."
+            : "No se pudo completar la operación.";
+    throw new Error(message);
   }
   return (await res.json()) as AuthUser;
+}
+
+export function signUp(email: string, password: string): Promise<AuthUser> {
+  return authRequest("/api/auth/signup", email, password);
+}
+
+export function signIn(email: string, password: string): Promise<AuthUser> {
+  return authRequest("/api/auth/signin", email, password);
 }
 
 export async function signOut(): Promise<void> {

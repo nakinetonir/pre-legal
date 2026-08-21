@@ -1,5 +1,4 @@
-import type { NdaFormValues } from "./types";
-import type { NdaChatFields } from "./chatFields";
+import type { DocumentTypeId } from "./types";
 
 export type ChatRole = "user" | "assistant";
 
@@ -10,8 +9,9 @@ export type ChatMessage = {
 
 export type ChatTurn = {
   reply: string;
-  fields: NdaChatFields;
+  fields: Record<string, unknown>;
   readyToGenerate: boolean;
+  documentType: DocumentTypeId | null;
 };
 
 /**
@@ -36,16 +36,22 @@ export async function fetchGreeting(): Promise<string> {
   return data.reply;
 }
 
+/**
+ * `documentType` is null until the backend's router turn detects it
+ * (backend/app/chat.py); `values` travels as whatever shape the active
+ * document type owns (or `{}` before a type is known).
+ */
 export async function sendChatMessage(
   messages: ChatMessage[],
-  values: NdaFormValues,
+  documentType: DocumentTypeId | null,
+  values: unknown,
   locale: string
 ): Promise<ChatTurn> {
   const res = await fetch(`${apiBase()}/api/chat/message`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, values, locale }),
+    body: JSON.stringify({ messages, documentType, values: values ?? {}, locale }),
   });
   if (!res.ok) {
     throw new Error("No se pudo enviar el mensaje al chat");
